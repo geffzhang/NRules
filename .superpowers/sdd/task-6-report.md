@@ -262,3 +262,209 @@ NRules.Persistence.EntityFrameworkCore.Tests -> e:\GitHub\NRules\src\NRules\NRul
 ```
 
 Follow-up fix commit: `821b9530 fix: handle reloader swap subscriber failures`
+
+## Runner API Follow-up: Configurable Logging
+
+Preserved `RunOnceAsync(IRuleStore, IRuleSessionFactoryProvider, CancellationToken)` and added the `ILogger` overload. Both route through shared publication-aware handling: when `Swap` throws but `ReferenceEquals(provider.Current, factory)` is true, they log the `FactorySwapped` callback failure and return that published factory; if publication did not occur, the original exception propagates. The legacy overload uses `System.Diagnostics.Trace.TraceError` so the callback error is not silently suppressed. The Task 6 brief now documents both overloads and their behavior.
+
+### TDD RED (verbatim test result)
+
+Command:
+
+```powershell
+dotnet test src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\NRules.Persistence.EntityFrameworkCore.Tests.csproj --filter "FullyQualifiedName~RulesReloaderRunnerSubscriberFailureTests" --no-restore -nologo
+```
+
+```text
+NRules.RuleModel -> E:\GitHub\NRules\src\NRules\NRules.RuleModel\bin\Debug\netstandard2.1\NRules.RuleModel.dll
+NRules.Json -> E:\GitHub\NRules\src\NRules\NRules.Json\bin\Debug\netstandard2.1\NRules.Json.dll
+NRules -> E:\GitHub\NRules\src\NRules\NRules\bin\Debug\netstandard2.1\NRules.dll
+NRules.Persistence.EntityFrameworkCore -> E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.dll
+NRules.Fluent -> E:\GitHub\NRules\src\NRules\NRules.Fluent\bin\Debug\netstandard2.1\NRules.Fluent.dll
+E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\Unit\RulesReloaderRunnerSubscriberFailureTests.cs(27,48): error CS1501: “RunOnceAsync”方法没有采用 4 个参数的重载 [E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\NRules.Persistence.EntityFrameworkCore.Tests.csproj]
+```
+
+### Final verification output (verbatim)
+
+Focused reloader and runner tests:
+
+Command:
+
+```powershell
+dotnet test src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\NRules.Persistence.EntityFrameworkCore.Tests.csproj --filter "FullyQualifiedName~Reloader" --no-restore -nologo
+```
+
+```text
+NRules.RuleModel -> E:\GitHub\NRules\src\NRules\NRules.RuleModel\bin\Debug\netstandard2.1\NRules.RuleModel.dll
+NRules.Persistence.EntityFrameworkCore -> E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.dll
+NRules -> E:\GitHub\NRules\src\NRules\NRules\bin\Debug\netstandard2.1\NRules.dll
+NRules.Json -> E:\GitHub\NRules\src\NRules\NRules.Json\bin\Debug\netstandard2.1\NRules.Json.dll
+NRules.Fluent -> E:\GitHub\NRules\src\NRules\NRules.Fluent\bin\Debug\netstandard2.1\NRules.Fluent.dll
+NRules.Persistence.EntityFrameworkCore.Tests -> E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.Tests.dll
+E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.Tests.dll (.NETCoreApp,Version=v10.0)的测试运行
+总共 1 个测试文件与指定模式相匹配。
+
+已通过! - 失败:     0，通过:     6，已跳过:     0，总计:     6，持续时间: 8 s - NRules.Persistence.EntityFrameworkCore.Tests.dll (net10.0)
+```
+
+Full persistence test project:
+
+Command:
+
+```powershell
+dotnet test src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\NRules.Persistence.EntityFrameworkCore.Tests.csproj --no-restore -nologo
+```
+
+```text
+NRules.RuleModel -> E:\GitHub\NRules\src\NRules\NRules.RuleModel\bin\Debug\netstandard2.1\NRules.RuleModel.dll
+NRules -> E:\GitHub\NRules\src\NRules\NRules\bin\Debug\netstandard2.1\NRules.dll
+NRules.Json -> E:\GitHub\NRules\src\NRules\NRules.Json\bin\Debug\netstandard2.1\NRules.Json.dll
+NRules.Persistence.EntityFrameworkCore -> E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.dll
+NRules.Fluent -> E:\GitHub\NRules\src\NRules\NRules.Fluent\bin\Debug\netstandard2.1\NRules.Fluent.dll
+NRules.Persistence.EntityFrameworkCore.Tests -> E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.Tests.dll
+E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.Tests.dll (.NETCoreApp,Version=v10.0)的测试运行
+总共 1 个测试文件与指定模式相匹配。
+
+已通过! - 失败:     0，通过:    22，已跳过:     0，总计:    22，持续时间: 7 s - NRules.Persistence.EntityFrameworkCore.Tests.dll (net10.0)
+```
+
+Warning-as-error build:
+
+Command:
+
+```powershell
+dotnet build src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\NRules.Persistence.EntityFrameworkCore.Tests.csproj --no-restore -warnaserror -nologo
+```
+
+```text
+NRules.RuleModel -> e:\GitHub\NRules\src\NRules\NRules.RuleModel\bin\Debug\netstandard2.1\NRules.RuleModel.dll
+NRules -> e:\GitHub\NRules\src\NRules\NRules\bin\Debug\netstandard2.1\NRules.dll
+NRules.Json -> e:\GitHub\NRules\src\NRules\NRules.Json\bin\Debug\netstandard2.1\NRules.Json.dll
+NRules.Persistence.EntityFrameworkCore -> e:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.dll
+NRules.Fluent -> e:\GitHub\NRules\src\NRules\NRules.Fluent\bin\Debug\netstandard2.1\NRules.Fluent.dll
+NRules.Persistence.EntityFrameworkCore.Tests -> e:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.Tests.dll
+
+已成功生成。
+    0 个警告
+    0 个错误
+
+已用时间 00:00:03.36
+```
+
+### Final verification after propagation coverage (verbatim)
+
+The runner regression tests also verify that both overloads propagate a swap exception when `provider.Current` is not the newly compiled factory.
+
+Focused reloader and runner tests:
+
+Command:
+
+```powershell
+dotnet test src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\NRules.Persistence.EntityFrameworkCore.Tests.csproj --filter "FullyQualifiedName~Reloader" --no-restore -nologo
+```
+
+```text
+NRules.RuleModel -> E:\GitHub\NRules\src\NRules\NRules.RuleModel\bin\Debug\netstandard2.1\NRules.RuleModel.dll
+NRules -> E:\GitHub\NRules\src\NRules\NRules\bin\Debug\netstandard2.1\NRules.dll
+NRules.Json -> E:\GitHub\NRules\src\NRules\NRules.Json\bin\Debug\netstandard2.1\NRules.Json.dll
+NRules.Persistence.EntityFrameworkCore -> E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.dll
+NRules.Fluent -> E:\GitHub\NRules\src\NRules\NRules.Fluent\bin\Debug\netstandard2.1\NRules.Fluent.dll
+NRules.Persistence.EntityFrameworkCore.Tests -> E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.Tests.dll
+E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.Tests.dll (.NETCoreApp,Version=v10.0)的测试运行
+总共 1 个测试文件与指定模式相匹配。
+
+已通过! - 失败:     0，通过:     8，已跳过:     0，总计:     8，持续时间: 9 s - NRules.Persistence.EntityFrameworkCore.Tests.dll (net10.0)
+```
+
+Full persistence test project:
+
+Command:
+
+```powershell
+dotnet test src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\NRules.Persistence.EntityFrameworkCore.Tests.csproj --no-restore -nologo
+```
+
+```text
+NRules.RuleModel -> E:\GitHub\NRules\src\NRules\NRules.RuleModel\bin\Debug\netstandard2.1\NRules.RuleModel.dll
+NRules -> E:\GitHub\NRules\src\NRules\NRules\bin\Debug\netstandard2.1\NRules.dll
+NRules.Json -> E:\GitHub\NRules\src\NRules\NRules.Json\bin\Debug\netstandard2.1\NRules.Json.dll
+NRules.Persistence.EntityFrameworkCore -> E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.dll
+NRules.Fluent -> E:\GitHub\NRules\src\NRules\NRules.Fluent\bin\Debug\netstandard2.1\NRules.Fluent.dll
+NRules.Persistence.EntityFrameworkCore.Tests -> E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.Tests.dll
+E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.Tests.dll (.NETCoreApp,Version=v10.0)的测试运行
+总共 1 个测试文件与指定模式相匹配。
+
+已通过! - 失败:     0，通过:    24，已跳过:     0，总计:    24，持续时间: 7 s - NRules.Persistence.EntityFrameworkCore.Tests.dll (net10.0)
+```
+
+Warning-as-error build:
+
+Command:
+
+```powershell
+dotnet build src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\NRules.Persistence.EntityFrameworkCore.Tests.csproj --no-restore -warnaserror -nologo
+```
+
+```text
+NRules.RuleModel -> e:\GitHub\NRules\src\NRules\NRules.RuleModel\bin\Debug\netstandard2.1\NRules.RuleModel.dll
+NRules.Json -> e:\GitHub\NRules\src\NRules\NRules.Json\bin\Debug\netstandard2.1\NRules.Json.dll
+NRules -> e:\GitHub\NRules\src\NRules\NRules\bin\Debug\netstandard2.1\NRules.dll
+NRules.Persistence.EntityFrameworkCore -> E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.dll
+NRules.Fluent -> e:\GitHub\NRules\src\NRules\NRules.Fluent\bin\Debug\netstandard2.1\NRules.Fluent.dll
+NRules.Persistence.EntityFrameworkCore.Tests -> E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.Tests.dll
+
+已成功生成。
+    0 个警告
+    0 个错误
+
+已用时间 00:00:03.46
+```
+
+### Latest verification after final runner cleanup (verbatim)
+
+Focused tests (`dotnet test src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\NRules.Persistence.EntityFrameworkCore.Tests.csproj --filter "FullyQualifiedName~Reloader" --no-restore -nologo`):
+
+```text
+NRules.RuleModel -> E:\GitHub\NRules\src\NRules\NRules.RuleModel\bin\Debug\netstandard2.1\NRules.RuleModel.dll
+NRules -> E:\GitHub\NRules\src\NRules\NRules\bin\Debug\netstandard2.1\NRules.dll
+NRules.Json -> E:\GitHub\NRules\src\NRules\NRules.Json\bin\Debug\netstandard2.1\NRules.Json.dll
+NRules.Persistence.EntityFrameworkCore -> E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.dll
+NRules.Fluent -> E:\GitHub\NRules\src\NRules\NRules.Fluent\bin\Debug\netstandard2.1\NRules.Fluent.dll
+NRules.Persistence.EntityFrameworkCore.Tests -> E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.Tests.dll
+E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.Tests.dll (.NETCoreApp,Version=v10.0)的测试运行
+总共 1 个测试文件与指定模式相匹配。
+
+已通过! - 失败:     0，通过:     8，已跳过:     0，总计:     8，持续时间: 9 s - NRules.Persistence.EntityFrameworkCore.Tests.dll (net10.0)
+```
+
+Full persistence tests (`dotnet test src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\NRules.Persistence.EntityFrameworkCore.Tests.csproj --no-restore -nologo`):
+
+```text
+NRules.RuleModel -> E:\GitHub\NRules\src\NRules\NRules.RuleModel\bin\Debug\netstandard2.1\NRules.RuleModel.dll
+NRules -> E:\GitHub\NRules\src\NRules\NRules\bin\Debug\netstandard2.1\NRules.dll
+NRules.Json -> E:\GitHub\NRules\src\NRules\NRules.Json\bin\Debug\netstandard2.1\NRules.Json.dll
+NRules.Persistence.EntityFrameworkCore -> E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.dll
+NRules.Fluent -> E:\GitHub\NRules\src\NRules\NRules.Fluent\bin\Debug\netstandard2.1\NRules.Fluent.dll
+NRules.Persistence.EntityFrameworkCore.Tests -> E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.Tests.dll
+E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.Tests.dll (.NETCoreApp,Version=v10.0)的测试运行
+总共 1 个测试文件与指定模式相匹配。
+
+已通过! - 失败:     0，通过:    24，已跳过:     0，总计:    24，持续时间: 7 s - NRules.Persistence.EntityFrameworkCore.Tests.dll (net10.0)
+```
+
+Warnings-as-errors build (`dotnet build src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\NRules.Persistence.EntityFrameworkCore.Tests.csproj --no-restore -warnaserror -nologo`):
+
+```text
+NRules.RuleModel -> E:\GitHub\NRules\src\NRules\NRules.RuleModel\bin\Debug\netstandard2.1\NRules.RuleModel.dll
+NRules -> E:\GitHub\NRules\src\NRules\NRules\bin\Debug\netstandard2.1\NRules.dll
+NRules.Json -> e:\GitHub\NRules\src\NRules.Json\bin\Debug\netstandard2.1\NRules.Json.dll
+NRules.Persistence.EntityFrameworkCore -> E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.dll
+NRules.Fluent -> e:\GitHub\NRules\src\NRules\NRules.Fluent\bin\Debug\netstandard2.1\NRules.Fluent.dll
+NRules.Persistence.EntityFrameworkCore.Tests -> E:\GitHub\NRules\src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\bin\Debug\net10.0\NRules.Persistence.EntityFrameworkCore.Tests.dll
+
+已成功生成。
+    0 个警告
+    0 个错误
+
+已用时间 00:00:02.95
+```
