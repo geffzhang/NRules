@@ -86,7 +86,10 @@ namespace NRules.Persistence.EntityFrameworkCore.Migrations
 
                     b.HasKey("Name");
 
-                    b.ToTable("rules", (string)null);
+                    b.ToTable("rules", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_rules_rule_definition_name_matches_name", "rule_definition ->> 'name' = name");
+                        });
                 });
 #pragma warning restore 612, 618
         }

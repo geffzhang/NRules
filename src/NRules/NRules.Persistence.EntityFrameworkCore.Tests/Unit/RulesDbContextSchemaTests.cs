@@ -54,6 +54,25 @@ public class RulesDbContextSchemaTests
     }
 
     [Fact]
+    public void Rule_definition_name_must_match_rule_name()
+    {
+        const string constraintName = "CK_rules_rule_definition_name_matches_name";
+        const string constraintSql = "rule_definition ->> 'name' = name";
+
+        var options = new DbContextOptionsBuilder<RulesDbContext>()
+            .UseNpgsql("Host=localhost;Database=rules;Username=postgres;Password=postgres")
+            .Options;
+
+        using var ctx = new RulesDbContext(options);
+        var entityType = ctx.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(RuleEntity))!;
+        var constraint = Assert.Single(entityType.GetCheckConstraints(), check => check.Name == constraintName);
+        var script = ctx.GetService<IMigrator>().GenerateScript();
+
+        Assert.Equal(constraintSql, constraint.Sql);
+        Assert.Contains($"CONSTRAINT \"{constraintName}\" CHECK ({constraintSql})", script);
+    }
+
+    [Fact]
     public void Migration_script_preserves_xmin_and_rule_triggers()
     {
         var options = new DbContextOptionsBuilder<RulesDbContext>()
@@ -86,14 +105,16 @@ public class RulesDbContextSchemaTests
         Assert.Contains("pg_notify('rules_changed', NEW.name)", script);
         Assert.Contains("CREATE TRIGGER rules_changed_trg", script);
 
-        var migrationId = ctx.Database.GetMigrations().Single();
+        var migrationId = ctx.Database.GetMigrations().Last();
         var downScript = ctx.GetService<IMigrator>().GenerateScript(migrationId, Migration.InitialDatabase);
+        var dropConstraintIndex = downScript.IndexOf("DROP CONSTRAINT \"CK_rules_rule_definition_name_matches_name\"", StringComparison.Ordinal);
         var dropVersionTriggerIndex = downScript.IndexOf("DROP TRIGGER IF EXISTS rules_set_version_trg", StringComparison.Ordinal);
         var dropNotifyTriggerIndex = downScript.IndexOf("DROP TRIGGER IF EXISTS rules_changed_trg", StringComparison.Ordinal);
         var dropVersionFunctionIndex = downScript.IndexOf("DROP FUNCTION IF EXISTS rules_set_version()", StringComparison.Ordinal);
         var dropNotifyFunctionIndex = downScript.IndexOf("DROP FUNCTION IF EXISTS rules_notify()", StringComparison.Ordinal);
         var dropTableIndex = downScript.IndexOf("DROP TABLE rules", StringComparison.Ordinal);
 
+        Assert.True(dropConstraintIndex >= 0 && dropConstraintIndex < dropTableIndex);
         Assert.True(dropVersionTriggerIndex >= 0 && dropVersionTriggerIndex < dropTableIndex);
         Assert.True(dropNotifyTriggerIndex >= 0 && dropNotifyTriggerIndex < dropTableIndex);
         Assert.True(dropVersionFunctionIndex >= 0 && dropVersionFunctionIndex < dropTableIndex);

@@ -15,7 +15,10 @@ public class RulesDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         var entity = modelBuilder.Entity<RuleEntity>();
-        entity.ToTable("rules");
+        entity.ToTable("rules", table =>
+            table.HasCheckConstraint(
+                "CK_rules_rule_definition_name_matches_name",
+                "rule_definition ->> 'name' = name"));
         entity.HasKey(rule => rule.Name);
         entity.Property(rule => rule.Name)
             .HasColumnName("name")
