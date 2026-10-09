@@ -10,6 +10,7 @@ public class RulesReloader : BackgroundService
     private readonly IRuleStore _store;
     private readonly IRuleSessionFactoryProvider _provider;
     private readonly ReloaderOptions _options;
+    private readonly TimeSpan _pollInterval;
     private readonly TimeProvider _time;
     private readonly ILogger<RulesReloader> _logger;
     private readonly Channel<ReloadReason> _signals;
@@ -25,6 +26,15 @@ public class RulesReloader : BackgroundService
         _store = store;
         _provider = provider;
         _options = options;
+        _pollInterval = options.PollInterval ?? TimeSpan.FromSeconds(30);
+        if (_pollInterval <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(options.PollInterval),
+                options.PollInterval,
+                "PollInterval must be greater than zero.");
+        }
+
         _time = time;
         _logger = loggerFactory.CreateLogger<RulesReloader>();
 
@@ -51,12 +61,11 @@ public class RulesReloader : BackgroundService
 
     private async Task RunPollingLoopAsync(CancellationToken stop)
     {
-        var interval = _options.PollInterval ?? TimeSpan.FromSeconds(30);
         var jitter = _options.PollJitter ?? TimeSpan.FromSeconds(3);
 
         while (!stop.IsCancellationRequested)
         {
-            await Task.Delay(interval + RandomJitter(jitter), _time, stop);
+            await Task.Delay(_pollInterval + RandomJitter(jitter), _time, stop);
             _signals.Writer.TryWrite(ReloadReason.Poll);
         }
     }
