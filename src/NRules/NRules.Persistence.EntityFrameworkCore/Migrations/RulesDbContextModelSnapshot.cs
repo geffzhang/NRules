@@ -88,7 +88,7 @@ namespace NRules.Persistence.EntityFrameworkCore.Migrations
 
                     b.ToTable("rules", null, t =>
                         {
-                            t.HasCheckConstraint("CK_rules_rule_definition_name_matches_name", "(rule_definition ? 'name') AND jsonb_typeof(rule_definition -> 'name') = 'string' AND rule_definition ->> 'name' = name");
+                            t.HasCheckConstraint("CK_rules_rule_definition_name_matches_name", "jsonb_typeof(rule_definition) = 'object' AND (rule_definition ? 'name') AND jsonb_typeof(rule_definition -> 'name') = 'string' AND rule_definition ->> 'name' = name");
                         });
                 });
 #pragma warning restore 612, 618

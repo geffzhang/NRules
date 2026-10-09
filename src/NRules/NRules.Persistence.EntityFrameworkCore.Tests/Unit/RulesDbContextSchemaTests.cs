@@ -58,7 +58,7 @@ public class RulesDbContextSchemaTests
     {
         const string constraintName = "CK_rules_rule_definition_name_matches_name";
         const string constraintSql =
-            "(rule_definition ? 'name') AND jsonb_typeof(rule_definition -> 'name') = 'string' AND rule_definition ->> 'name' = name";
+            "jsonb_typeof(rule_definition) = 'object' AND (rule_definition ? 'name') AND jsonb_typeof(rule_definition -> 'name') = 'string' AND rule_definition ->> 'name' = name";
 
         var options = new DbContextOptionsBuilder<RulesDbContext>()
             .UseNpgsql("Host=localhost;Database=rules;Username=postgres;Password=postgres")

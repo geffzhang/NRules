@@ -29,7 +29,8 @@ public class RuleDefinitionNameConstraintTests
             """{"description":"missing name"}""",
             """{"name":null}""",
             """{"name":123}""",
-            """{"name":"different"}"""
+            """{"name":"different"}""",
+            """["name"]"""
         };
 
         for (var index = 0; index < invalidDefinitions.Length; index++)
