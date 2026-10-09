@@ -25,5 +25,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NRules.Persistence.EntityFrameworkCore\NRules.Persistence.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\NRules.Fluent\NRules.Fluent.csproj" />
+    <ProjectReference Include="..\NRules\NRules.csproj" />
+    <ProjectReference Include="..\NRules.RuleModel\NRules.RuleModel.csproj" />
   </ItemGroup>
 </Project>
