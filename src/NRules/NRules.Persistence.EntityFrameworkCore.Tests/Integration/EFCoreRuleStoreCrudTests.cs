@@ -136,13 +136,51 @@ public class EFCoreRuleStoreCrudTests
         await _pg.ResetAsync();
         var store = NewStore();
         await store.SaveRuleAsync(MakeRule("rule-C"));
+        await using (var context = _pg.NewDbContext())
+        {
+            var row = await context.Rules.SingleAsync();
+            Assert.Equal("rule-C", row.Name);
+            Assert.Equal(1, row.RuleVersion);
+        }
 
         var f1 = await store.ComputeFingerprintAsync();
         var f2 = await store.ComputeFingerprintAsync();
 
         Assert.Equal(f1.Hash, f2.Hash);
+        Assert.Equal(-3564688325343655662L, f1.Hash);
         Assert.Equal(1, f1.Count);
+        Assert.Equal(1, f1.LatestVersion);
     }
+
+    [Fact]
+    public async Task SaveRule_Roundtrips_MemberInit_Assignment_And_Compiles()
+    {
+        await _pg.ResetAsync();
+        var store = NewStore();
+        var builder = new RuleBuilder();
+        builder.Name("member-init");
+        builder.LeftHandSide().Pattern(typeof(ProjectionFact), "fact");
+        Expression<Action<IContext, ProjectionFact>> action =
+            (context, fact) => context.Insert(new ProjectionResult { Value = fact.Value });
+        builder.RightHandSide().Action(action);
+        await store.SaveRuleAsync(builder.Build());
+
+        var rules = await store.LoadAllAsync();
+
+        var rule = Assert.Single(rules);
+        Assert.Equal("member-init", rule.Name);
+        Assert.NotNull(new RuleCompiler().Compile(rules));
+    }
+}
+
+public sealed class ProjectionFact
+{
+    public string Value { get; set; } = string.Empty;
+}
+
+public sealed class ProjectionResult
+{
+    public string Value { get; set; } = string.Empty;
 }
 
 internal sealed class TestDbContextFactory : IDbContextFactory<RulesDbContext>

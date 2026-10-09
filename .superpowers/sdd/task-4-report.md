@@ -41,3 +41,45 @@ The same focused command passed after implementation: **5 passed, 0 failed**. Th
 - The JSON object order normalizer is deliberately internal to persistence and needed because PostgreSQL `jsonb` canonicalizes object keys. The integration tests exercise a rule with an expression, metadata, tags, and properties through PostgreSQL before compiling the loaded result.
 - The fingerprint implementation follows the task brief's sorted-name/rule-version fold and returns row count and maximum version (zero for an empty table).
 - No unrelated tracked files were changed. Existing untracked documentation and scratch artifacts were left untouched.
+
+## Review follow-up: stable fingerprints and MemberInit bindings
+
+### RED
+
+Added the fixed SHA-256 vector and a PostgreSQL MemberInit assignment round-trip/compile regression before changing production code.
+
+Fingerprint command:
+
+```text
+dotnet test src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\NRules.Persistence.EntityFrameworkCore.Tests.csproj --filter "FullyQualifiedName~Compute_Fingerprint_Is_Stable_Across_Equal_Inputs" -nologo -v:normal
+```
+
+Expected failure from the previous process-randomized implementation:
+
+```text
+Assert.Equal() Failure: Values differ
+Expected: -3564688325343655662
+Actual:   355029557
+```
+
+MemberInit command:
+
+```text
+dotnet test src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\NRules.Persistence.EntityFrameworkCore.Tests.csproj --filter "FullyQualifiedName~SaveRule_Roundtrips_MemberInit_Assignment_And_Compiles" -nologo -v:normal
+```
+
+Expected failure from the previous normalizer:
+
+```text
+System.InvalidOperationException : Cannot load rule 'member-init'; no partial ruleset will be returned.
+---- System.Text.Json.JsonException : Expected property. Name=BindingType
+```
+
+### GREEN
+
+- Replaced randomized hash combination with SHA-256 over the sorted rows, appending each name's UTF-8 byte length as a 4-byte big-endian integer, its UTF-8 bytes, and its 4-byte big-endian rule version. The first eight digest bytes are read as big-endian signed `Int64`.
+- Changed MemberInit binding normalization to prioritize `bindingType`, followed by `memberType`, `name`, `declaringType`, and `expression`, matching the NRules converter reader.
+- The fixed-vector integration test also reads the PostgreSQL row and verifies `name == "rule-C"` and `rule_version == 1`, so the requested test vector matches the actual fixture data.
+- Focused command `dotnet test src\NRules\NRules.Persistence.EntityFrameworkCore.Tests\NRules.Persistence.EntityFrameworkCore.Tests.csproj --filter "FullyQualifiedName~EFCoreRuleStoreCrudTests" -nologo` — **6 passed, 0 failed**.
+- Full persistence test project — **12 passed, 0 failed**.
+- Library and test project builds with `--no-restore` — **0 warnings, 0 errors** each.

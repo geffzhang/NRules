@@ -1,3 +1,6 @@
+using System.Buffers.Binary;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -111,16 +114,22 @@ public class EFCoreRuleStore : IRuleStore
             .Select(rule => new { rule.Name, rule.RuleVersion })
             .ToListAsync(ct);
 
-        var seed = 0u;
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        Span<byte> valueBuffer = stackalloc byte[sizeof(int)];
         foreach (var row in rows)
         {
-            var nameHash = HashCode.Combine(row.Name.GetHashCode());
-            var versionHash = HashCode.Combine(nameHash, row.RuleVersion);
-            seed = unchecked(seed * 31 + (uint)versionHash);
+            var nameBytes = Encoding.UTF8.GetBytes(row.Name);
+            BinaryPrimitives.WriteInt32BigEndian(valueBuffer, nameBytes.Length);
+            hash.AppendData(valueBuffer);
+            hash.AppendData(nameBytes);
+            BinaryPrimitives.WriteInt32BigEndian(valueBuffer, row.RuleVersion);
+            hash.AppendData(valueBuffer);
         }
 
+        var digest = hash.GetHashAndReset();
+        var fingerprintHash = BinaryPrimitives.ReadInt64BigEndian(digest.AsSpan(0, sizeof(long)));
         return new RulesFingerprint(
-            (long)seed,
+            fingerprintHash,
             rows.Count,
             rows.Count == 0 ? 0 : rows.Max(row => row.RuleVersion));
     }

@@ -99,10 +99,10 @@ internal static class RuleJsonOrderNormalizer
             };
         }
 
-        if (obj.ContainsKey("memberType"))
-            return ["memberType", "name", "declaringType"];
         if (obj.ContainsKey("bindingType"))
             return ["bindingType", "memberType", "name", "declaringType", "expression"];
+        if (obj.ContainsKey("memberType"))
+            return ["memberType", "name", "declaringType"];
         if (obj.ContainsKey("methodName"))
             return ["methodName", "declaringType", "genericTypeArguments", "arguments"];
         if (context == "ruleDefinition")
