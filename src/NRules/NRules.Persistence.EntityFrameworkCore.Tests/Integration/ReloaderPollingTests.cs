@@ -61,7 +61,8 @@ public class ReloaderPollingTests
                 PollJitter = TimeSpan.Zero,
             },
             time,
-            NullLoggerFactory.Instance);
+            NullLoggerFactory.Instance,
+            new PostgresNotifyOptions());
 
         await store.SaveRuleAsync(MakeRule("before-start"));
         var swaps = Channel.CreateUnbounded<ISessionFactory>();

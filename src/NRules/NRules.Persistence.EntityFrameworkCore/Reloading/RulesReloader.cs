@@ -10,11 +10,14 @@ public class RulesReloader : BackgroundService
     private readonly IRuleStore _store;
     private readonly IRuleSessionFactoryProvider _provider;
     private readonly ReloaderOptions _options;
+    private readonly PostgresNotifyOptions _notifyOptions;
     private readonly TimeSpan _pollInterval;
     private readonly TimeProvider _time;
     private readonly ILogger<RulesReloader> _logger;
+    private readonly ILoggerFactory _loggerFactory;
     private readonly Channel<ReloadReason> _signals;
     private RulesFingerprint _lastFingerprint;
+    private Task _notifyReady = Task.CompletedTask;
 
     public RulesReloader(
         IRuleStore store,
@@ -22,10 +25,22 @@ public class RulesReloader : BackgroundService
         ReloaderOptions options,
         TimeProvider time,
         ILoggerFactory loggerFactory)
+        : this(store, provider, options, time, loggerFactory, new PostgresNotifyOptions())
+    {
+    }
+
+    public RulesReloader(
+        IRuleStore store,
+        IRuleSessionFactoryProvider provider,
+        ReloaderOptions options,
+        TimeProvider time,
+        ILoggerFactory loggerFactory,
+        PostgresNotifyOptions notifyOptions)
     {
         _store = store;
         _provider = provider;
         _options = options;
+        _notifyOptions = notifyOptions;
         _pollInterval = options.PollInterval ?? TimeSpan.FromSeconds(30);
         if (_pollInterval <= TimeSpan.Zero)
         {
@@ -37,6 +52,7 @@ public class RulesReloader : BackgroundService
 
         _time = time;
         _logger = loggerFactory.CreateLogger<RulesReloader>();
+        _loggerFactory = loggerFactory;
 
         _signals = Channel.CreateBounded<ReloadReason>(new BoundedChannelOptions(1)
         {
@@ -49,14 +65,40 @@ public class RulesReloader : BackgroundService
     internal void Signal(ReloadReason reason) =>
         _signals.Writer.TryWrite(reason);
 
+    public Task WaitForNotifyReadyAsync(CancellationToken ct = default) =>
+        _notifyReady.WaitAsync(ct);
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _signals.Writer.TryWrite(ReloadReason.Bootstrap);
 
-        var pollTask = RunPollingLoopAsync(stoppingToken);
-        var consumeTask = RunConsumeLoopAsync(stoppingToken);
+        PostgresNotifyListener? listener = null;
+        if (_options.UseNotify)
+        {
+            var connectionString = _notifyOptions.ConnectionString
+                ?? throw new InvalidOperationException(
+                    "UsePostgresNotify requires PostgresNotifyOptions.ConnectionString.");
+            listener = new PostgresNotifyListener(
+                connectionString,
+                onNotify: () => _signals.Writer.TryWrite(ReloadReason.Notify),
+                _time,
+                _notifyOptions.ReconnectBackoff,
+                _loggerFactory.CreateLogger<PostgresNotifyListener>());
+            await listener.StartAsync(stoppingToken);
+            _notifyReady = listener.WaitUntilListeningAsync(stoppingToken);
+        }
 
-        await Task.WhenAll(pollTask, consumeTask);
+        try
+        {
+            var pollTask = RunPollingLoopAsync(stoppingToken);
+            var consumeTask = RunConsumeLoopAsync(stoppingToken);
+            await Task.WhenAll(pollTask, consumeTask);
+        }
+        finally
+        {
+            if (listener is not null)
+                await listener.StopAsync(CancellationToken.None);
+        }
     }
 
     private async Task RunPollingLoopAsync(CancellationToken stop)
