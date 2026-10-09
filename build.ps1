@@ -133,6 +133,23 @@ $components = @{
             )
         }
     };
+    'NRules.Persistence' = @{
+        name = 'NRules.Persistence.EntityFrameworkCore'
+        solution_file = 'src\NRules\NRules.sln'
+        package = @{
+            bin = @{
+                artifacts = @('net10.0')
+                'net10.0' = @{
+                    include = @(
+                        "NRules.Persistence.EntityFrameworkCore\bin\$configuration\net10.0"
+                    )
+                }
+            }
+            nuget = @(
+                'NRules.Persistence.EntityFrameworkCore'
+            )
+        }
+    };
     'Samples.GettingStarted' = @{
         name = 'GettingStarted'
         solution_file = 'samples\GettingStarted\GettingStarted.sln'
@@ -191,6 +208,7 @@ $components = @{
 $core = @('NRules')
 $visualizer = @('NRules.Debugger.Visualizer')
 $integration = $components.keys | Where-Object { $_.StartsWith("NRules.Integration") }
+$persistence = @('NRules.Persistence')
 $samples = $components.keys | Where-Object { $_.StartsWith("Samples.") }
 $benchmark = @('Benchmark')
 $documenation = @('Documentation')
@@ -198,6 +216,7 @@ $documenation = @('Documentation')
 $componentList = @()
 if ($component -eq "Core") {
     $componentList += $core
+    $componentList += $persistence
 } elseif ($component -eq "Visualizer") {
     $componentList += $visualizer
 } elseif ($component -eq "Integration") {
@@ -206,6 +225,7 @@ if ($component -eq "Core") {
     $componentList += $samples
 } elseif ($component -eq "All") {
     $componentList += $core
+    $componentList += $persistence
     $componentList += $visualizer
     $componentList += $integration
     $componentList += $samples
