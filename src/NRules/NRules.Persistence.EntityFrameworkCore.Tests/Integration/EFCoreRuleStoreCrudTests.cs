@@ -182,13 +182,3 @@ public sealed class ProjectionResult
 {
     public string Value { get; set; } = string.Empty;
 }
-
-internal sealed class TestDbContextFactory : IDbContextFactory<RulesDbContext>
-{
-    private readonly DbContextOptions<RulesDbContext> _options;
-
-    public TestDbContextFactory(string conn)
-        => _options = new DbContextOptionsBuilder<RulesDbContext>().UseNpgsql(conn).Options;
-
-    public RulesDbContext CreateDbContext() => new(_options);
-}
