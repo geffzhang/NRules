@@ -82,7 +82,17 @@ public class RulesReloader : BackgroundService
 
                 var rules = await _store.LoadAllAsync(stop);
                 var factory = new NRules.RuleCompiler().Compile(rules);
-                _provider.Swap(factory);
+                try
+                {
+                    _provider.Swap(factory);
+                }
+                catch (Exception exception) when (ReferenceEquals(_provider.Current, factory))
+                {
+                    _logger.LogError(
+                        exception,
+                        "FactorySwapped event handler failed after factory publication; treating reload as successful");
+                }
+
                 _lastFingerprint = fingerprint;
                 _logger.LogInformation(
                     "Rules rebuilt; count={Count} latest={Latest}",
