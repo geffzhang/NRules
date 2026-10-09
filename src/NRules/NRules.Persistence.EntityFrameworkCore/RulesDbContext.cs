@@ -18,7 +18,7 @@ public class RulesDbContext : DbContext
         entity.ToTable("rules", table =>
             table.HasCheckConstraint(
                 "CK_rules_rule_definition_name_matches_name",
-                "rule_definition ->> 'name' = name"));
+                "(rule_definition ? 'name') AND jsonb_typeof(rule_definition -> 'name') = 'string' AND rule_definition ->> 'name' = name"));
         entity.HasKey(rule => rule.Name);
         entity.Property(rule => rule.Name)
             .HasColumnName("name")

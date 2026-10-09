@@ -54,10 +54,11 @@ public class RulesDbContextSchemaTests
     }
 
     [Fact]
-    public void Rule_definition_name_must_match_rule_name()
+    public void Rule_definition_name_must_be_a_string_matching_rule_name()
     {
         const string constraintName = "CK_rules_rule_definition_name_matches_name";
-        const string constraintSql = "rule_definition ->> 'name' = name";
+        const string constraintSql =
+            "(rule_definition ? 'name') AND jsonb_typeof(rule_definition -> 'name') = 'string' AND rule_definition ->> 'name' = name";
 
         var options = new DbContextOptionsBuilder<RulesDbContext>()
             .UseNpgsql("Host=localhost;Database=rules;Username=postgres;Password=postgres")
