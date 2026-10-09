@@ -6,6 +6,7 @@ using Xunit;
 
 namespace NRules.Persistence.EntityFrameworkCore.Tests.Integration;
 
+[Trait("Category", "Integration")]
 public class RuleDefinitionNameConstraintTests
 {
     [Fact]
