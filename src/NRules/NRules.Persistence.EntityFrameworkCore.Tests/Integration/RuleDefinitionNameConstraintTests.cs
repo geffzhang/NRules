@@ -1,26 +1,23 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using NRules.Persistence.EntityFrameworkCore;
-using Testcontainers.PostgreSql;
 using Xunit;
 
 namespace NRules.Persistence.EntityFrameworkCore.Tests.Integration;
 
 [Trait("Category", "Integration")]
+[Collection("Postgres")]
 public class RuleDefinitionNameConstraintTests
 {
+    private readonly PostgresFixture _pg;
+
+    public RuleDefinitionNameConstraintTests(PostgresFixture pg) => _pg = pg;
+
     [Fact]
     public async Task Rule_definition_name_must_be_present_a_string_and_match_rule_name()
     {
-        await using var postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
-        await postgres.StartAsync();
-
-        var options = new DbContextOptionsBuilder<RulesDbContext>()
-            .UseNpgsql(postgres.GetConnectionString())
-            .Options;
-
-        await using var ctx = new RulesDbContext(options);
-        await ctx.Database.MigrateAsync();
+        await _pg.ResetAsync();
+        await using var ctx = _pg.NewDbContext();
 
         await InsertRuleAsync(ctx, "matching", """{"name":"matching"}""");
 
