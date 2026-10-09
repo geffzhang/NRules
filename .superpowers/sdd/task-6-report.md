@@ -260,3 +260,5 @@ NRules.Persistence.EntityFrameworkCore.Tests -> e:\GitHub\NRules\src\NRules\NRul
 
 已用时间 00:00:05.51
 ```
+
+Follow-up fix commit: `821b9530 fix: handle reloader swap subscriber failures`
