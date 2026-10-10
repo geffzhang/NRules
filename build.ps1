@@ -166,6 +166,10 @@ $components = @{
         name = 'JsonRules'
         solution_file = 'samples\JsonRules\JsonRules.sln'
     };
+    'Samples.Persistence' = @{
+        name = 'Persistence.Postgres'
+        solution_file = 'samples\Persistence.Postgres\Persistence.Postgres.sln'
+    };
     'Samples.DependencyInjection' = @{
         name = 'DependencyInjection'
         solution_file = 'samples\DependencyInjection\DependencyInjection.sln'
