@@ -6,6 +6,8 @@ namespace NRules.Persistence.EntityFrameworkCore.Reloading;
 
 public sealed class PostgresNotifyListener : BackgroundService
 {
+    private static readonly TimeSpan MaximumBackoff = TimeSpan.FromSeconds(30);
+
     private readonly string _connectionString;
     private readonly string _channel;
     private readonly Action _onNotify;
@@ -35,7 +37,7 @@ public sealed class PostgresNotifyListener : BackgroundService
         _channel = "rules_changed";
         _onNotify = onNotify;
         _time = time;
-        _initialBackoff = initialBackoff;
+        _initialBackoff = initialBackoff <= MaximumBackoff ? initialBackoff : MaximumBackoff;
         _logger = logger;
     }
 
@@ -72,7 +74,8 @@ public sealed class PostgresNotifyListener : BackgroundService
                     "Listen loop disconnected; reconnecting in {Backoff}",
                     backoff);
                 await Task.Delay(backoff, _time, stoppingToken);
-                backoff = TimeSpan.FromSeconds(Math.Min(30, backoff.TotalSeconds * 2));
+                backoff = TimeSpan.FromSeconds(
+                    Math.Min(MaximumBackoff.TotalSeconds, backoff.TotalSeconds * 2));
             }
         }
     }
